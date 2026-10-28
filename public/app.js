@@ -16,6 +16,10 @@
   const sheet = document.getElementById("sheet");
   const sheetBackdrop = document.getElementById("sheetBackdrop");
   const sheetClose = document.getElementById("sheetClose");
+  const chaptersSheet = document.getElementById("chaptersSheet");
+  const chaptersBackdrop = document.getElementById("chaptersBackdrop");
+  const chaptersClose = document.getElementById("chaptersClose");
+  const chapterListEl = document.getElementById("chapterList");
 
   let verses = [];
   let renderedCount = 0;
@@ -24,6 +28,8 @@
   let io = null;
   let progressBar = null;
   let progressLabel = null;
+  let chapters = []; // [{ chapter, title, paliName, firstIdx, count }]
+  let currentChapter = 1;
 
   function loadSet(key) {
     try {
@@ -142,13 +148,68 @@
   }
 
   function updateProgress(idx, chapter) {
+    currentChapter = parseInt(chapter, 10);
     if (progressBar) {
       const pct = ((idx + 1) / verses.length) * 100;
       progressBar.style.width = pct.toFixed(2) + "%";
     }
     if (progressLabel) {
-      progressLabel.textContent = `Ch. ${chapter} / 26`;
+      progressLabel.textContent = `Ch. ${chapter} / ${chapters.length || 26}`;
     }
+  }
+
+  function buildChapters() {
+    const map = new Map();
+    verses.forEach((v, idx) => {
+      if (!map.has(v.chapter)) {
+        map.set(v.chapter, {
+          chapter: v.chapter,
+          title: v.chapterTitle,
+          paliName: v.chapterPaliName,
+          firstIdx: idx,
+          count: 0,
+        });
+      }
+      map.get(v.chapter).count += 1;
+    });
+    chapters = [...map.values()].sort((a, b) => a.chapter - b.chapter);
+  }
+
+  function renderChapterList() {
+    chapterListEl.innerHTML = chapters
+      .map(
+        (c) => `
+        <button class="chapter-row${c.chapter === currentChapter ? " chapter-row-active" : ""}" data-chapter="${c.chapter}">
+          <span class="chapter-row-num">${c.chapter}</span>
+          <span class="chapter-row-names">
+            <span class="chapter-row-title">${escapeHtml(c.title)}</span>
+            <span class="chapter-row-pali">${escapeHtml(c.paliName)} &middot; ${c.count} verses</span>
+          </span>
+        </button>`
+      )
+      .join("");
+  }
+
+  async function jumpToChapter(chapterNum) {
+    const target = chapters.find((c) => c.chapter === chapterNum);
+    if (!target) return;
+    while (renderedCount <= target.firstIdx) renderNextBatch();
+    closeChaptersSheet();
+    requestAnimationFrame(() => {
+      const el = feedEl.querySelector(`.verse-card[data-idx="${target.firstIdx}"]`);
+      if (el) el.scrollIntoView({ block: "start" });
+    });
+  }
+
+  function openChaptersSheet() {
+    renderChapterList();
+    chaptersSheet.hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeChaptersSheet() {
+    chaptersSheet.hidden = true;
+    document.body.style.overflow = "";
   }
 
   function openSheet(id) {
@@ -264,9 +325,11 @@
     document.body.appendChild(wrap);
     progressBar = wrap.querySelector(".feed-progress-bar");
 
-    const label = document.createElement("div");
+    const label = document.createElement("button");
     label.className = "feed-progress-label";
-    label.textContent = "Ch. 1 / 26";
+    label.setAttribute("aria-label", "Jump to chapter");
+    label.textContent = `Ch. 1 / ${chapters.length || 26}`;
+    label.addEventListener("click", openChaptersSheet);
     document.body.appendChild(label);
     progressLabel = label;
   }
@@ -281,11 +344,13 @@
       startBtn.disabled = false;
       return;
     }
+    buildChapters();
     onboarding.hidden = true;
     feedEl.hidden = false;
     createProgressBar();
     setupObservers();
     wireFeedEvents();
+    wireChaptersSheet();
     renderNextBatch();
 
     const hashId = location.hash.replace("#", "");
@@ -301,10 +366,21 @@
     }
   }
 
+  function wireChaptersSheet() {
+    chapterListEl.addEventListener("click", (e) => {
+      const row = e.target.closest(".chapter-row");
+      if (!row) return;
+      jumpToChapter(parseInt(row.getAttribute("data-chapter"), 10));
+    });
+  }
+
   startBtn.addEventListener("click", start);
   sheetClose.addEventListener("click", closeSheet);
   sheetBackdrop.addEventListener("click", closeSheet);
+  chaptersClose.addEventListener("click", closeChaptersSheet);
+  chaptersBackdrop.addEventListener("click", closeChaptersSheet);
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !sheet.hidden) closeSheet();
+    if (e.key === "Escape" && !chaptersSheet.hidden) closeChaptersSheet();
   });
 })();
