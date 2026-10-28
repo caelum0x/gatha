@@ -1,0 +1,11 @@
+name = "gatha"
+compatibility_date = "2024-09-23"
+workers_dev = true
+
+[assets]
+directory = "./public"
+not_found_handling = "single-page-application"
+
+[[routes]]
+pattern = "gatha.ereboslab.com"
+custom_domain = true
