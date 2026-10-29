@@ -23,6 +23,7 @@
   const chapterListEl = document.getElementById("chapterList");
   const chapterSearchEl = document.getElementById("chapterSearch");
   const chapterSearchResultsEl = document.getElementById("chapterSearchResults");
+  const chapterSearchStatusEl = document.getElementById("chapterSearchStatus");
   const moreTextsBlockEl = document.getElementById("moreTextsBlock");
   const moreTextsDividerEl = document.getElementById("moreTextsDivider");
   const keptSheet = document.getElementById("keptSheet");
@@ -304,6 +305,7 @@
     chapterSearchResultsEl.hidden = true;
     if (moreTextsBlockEl) moreTextsBlockEl.hidden = false;
     if (moreTextsDividerEl) moreTextsDividerEl.hidden = false;
+    if (chapterSearchStatusEl) chapterSearchStatusEl.textContent = "";
   }
 
   function chapterResultHtml(c) {
@@ -369,6 +371,22 @@
         verseMatches.push({ v, idx: i });
         if (verseMatches.length >= 40) break;
       }
+    }
+
+    // Announce the outcome to screen-reader users. `chapterSearchResultsEl`
+    // itself is intentionally not a live region (it can hold up to ~40+
+    // button rows and making the whole thing live would read every row's
+    // text aloud on each keystroke) — this separate visually-hidden
+    // `role="status"` element gives a short, polite summary instead, the
+    // same pattern used for search result counts elsewhere on the web.
+    // Before this fix there was no `aria-live` anywhere on this sheet:
+    // a screen-reader user typing a query got the results rendered
+    // silently with zero spoken feedback that anything had changed.
+    const total = chapterMatches.length + verseMatches.length;
+    if (chapterSearchStatusEl) {
+      chapterSearchStatusEl.textContent = total
+        ? `${total} result${total === 1 ? "" : "s"} for "${query}".`
+        : `No chapters or verses match "${query}".`;
     }
 
     if (!chapterMatches.length && !verseMatches.length) {
