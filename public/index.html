@@ -65,9 +65,11 @@
     <div class="sheet-scroll">
       <div class="sheet-kicker">26 chapters &middot; 423 verses</div>
       <h2 class="sheet-chapter-title">Jump to a chapter</h2>
+      <input id="chapterSearch" class="chapter-search" type="search" placeholder="Search chapters or verse text..." autocomplete="off" aria-label="Search chapters or verses" />
       <div id="chapterList" class="chapter-list"></div>
-      <div class="sheet-divider"></div>
-      <div class="more-texts">
+      <div id="chapterSearchResults" class="chapter-list" hidden></div>
+      <div class="sheet-divider" id="moreTextsDivider"></div>
+      <div class="more-texts" id="moreTextsBlock">
         <div class="sheet-label">More sacred texts, same format</div>
         <a class="more-texts-link" href="https://shloka.ereboslab.com" target="_blank" rel="noopener">
           <span class="more-texts-name">Shloka</span>

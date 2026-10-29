@@ -21,6 +21,10 @@
   const chaptersBackdrop = document.getElementById("chaptersBackdrop");
   const chaptersClose = document.getElementById("chaptersClose");
   const chapterListEl = document.getElementById("chapterList");
+  const chapterSearchEl = document.getElementById("chapterSearch");
+  const chapterSearchResultsEl = document.getElementById("chapterSearchResults");
+  const moreTextsBlockEl = document.getElementById("moreTextsBlock");
+  const moreTextsDividerEl = document.getElementById("moreTextsDivider");
   const keptSheet = document.getElementById("keptSheet");
   const keptBackdrop = document.getElementById("keptBackdrop");
   const keptClose = document.getElementById("keptClose");
@@ -212,7 +216,9 @@
   }
 
   function openChaptersSheet() {
+    chapterSearchEl.value = "";
     renderChapterList();
+    showChapterBrowseView();
     chaptersSheet.hidden = false;
     document.body.style.overflow = "hidden";
   }
@@ -220,6 +226,88 @@
   function closeChaptersSheet() {
     chaptersSheet.hidden = true;
     document.body.style.overflow = "";
+  }
+
+  // ---------- Chapter + full-text verse search ----------
+  // The chapter picker (above) only ever let you jump by chapter number —
+  // there was no way to find a specific verse by its content, so a reader
+  // who half-remembered a line had to re-scroll the whole 423-verse feed to
+  // find it again. All verses are already loaded in memory (unlike Versling's
+  // per-surah files), so search here is synchronous — no lazy-loading step.
+  function showChapterBrowseView() {
+    chapterListEl.hidden = false;
+    chapterSearchResultsEl.hidden = true;
+    if (moreTextsBlockEl) moreTextsBlockEl.hidden = false;
+    if (moreTextsDividerEl) moreTextsDividerEl.hidden = false;
+  }
+
+  function chapterResultHtml(c) {
+    return `
+      <button class="search-result-item" data-chapter="${c.chapter}">
+        <span class="search-result-tag">Chapter ${c.chapter} &middot; ${escapeHtml(c.paliName)}</span>
+        <span class="search-result-text">${escapeHtml(c.title)} &middot; ${c.count} verses</span>
+      </button>`;
+  }
+
+  function verseResultHtml(v, idx) {
+    return `
+      <button class="search-result-item" data-idx="${idx}">
+        <span class="search-result-tag">Chapter ${v.chapter}.${v.verse} &middot; ${escapeHtml(v.chapterTitle)}</span>
+        <span class="search-result-text">${escapeHtml(truncate(v.translation, 120))}</span>
+      </button>`;
+  }
+
+  function renderChapterSearch(query) {
+    if (!query) {
+      showChapterBrowseView();
+      return;
+    }
+    chapterListEl.hidden = true;
+    if (moreTextsBlockEl) moreTextsBlockEl.hidden = true;
+    if (moreTextsDividerEl) moreTextsDividerEl.hidden = true;
+    chapterSearchResultsEl.hidden = false;
+
+    const q = query.toLowerCase();
+    const chapterMatches = chapters.filter(
+      (c) =>
+        c.title.toLowerCase().includes(q) ||
+        c.paliName.toLowerCase().includes(q) ||
+        String(c.chapter) === query
+    );
+    const verseMatches = [];
+    for (let i = 0; i < verses.length; i++) {
+      const v = verses[i];
+      if (v.translation.toLowerCase().includes(q) || v.pali.toLowerCase().includes(q)) {
+        verseMatches.push({ v, idx: i });
+        if (verseMatches.length >= 40) break;
+      }
+    }
+
+    if (!chapterMatches.length && !verseMatches.length) {
+      chapterSearchResultsEl.innerHTML = `<p class="kept-empty">No chapters or verses match "${escapeHtml(query)}".</p>`;
+      return;
+    }
+    chapterSearchResultsEl.innerHTML =
+      chapterMatches.map(chapterResultHtml).join("") +
+      verseMatches.map(({ v, idx }) => verseResultHtml(v, idx)).join("");
+  }
+
+  function wireChapterSearch() {
+    chapterSearchEl.addEventListener("input", () => {
+      renderChapterSearch(chapterSearchEl.value.trim());
+    });
+    chapterSearchResultsEl.addEventListener("click", (e) => {
+      const item = e.target.closest(".search-result-item");
+      if (!item) return;
+      if (item.dataset.chapter) {
+        jumpToChapter(parseInt(item.dataset.chapter, 10));
+        return;
+      }
+      const idx = parseInt(item.dataset.idx, 10);
+      const v = verses[idx];
+      closeChaptersSheet();
+      if (v) jumpToVerse(v.id);
+    });
   }
 
   // ---------- Kept verses sheet ----------
@@ -484,6 +572,7 @@
       if (!row) return;
       jumpToChapter(parseInt(row.getAttribute("data-chapter"), 10));
     });
+    wireChapterSearch();
   }
 
   // A shared verse (`shareVerse()` above) produces a link like

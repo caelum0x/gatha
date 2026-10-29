@@ -361,6 +361,51 @@ html, body {
 .noted-row-main:active { opacity: 0.8; }
 
 /* ---------- Chapter picker ---------- */
+.chapter-search {
+  width: 100%;
+  background: #1a1c1a;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--fg);
+  font-size: 14px;
+  padding: 10px 12px;
+  font-family: inherit;
+  margin-bottom: 14px;
+}
+
+.chapter-search::placeholder { color: var(--fg-faint); }
+
+.search-result-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--fg);
+  cursor: pointer;
+  font-family: inherit;
+  margin-bottom: 8px;
+}
+
+.search-result-item:active { background: rgba(255,255,255,0.05); }
+
+.search-result-tag {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.search-result-text {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--fg);
+}
+
 .chapter-list {
   display: flex;
   flex-direction: column;
