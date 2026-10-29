@@ -454,6 +454,17 @@
     });
   }
 
+  // A shared verse (`shareVerse()` above) produces a link like
+  // `https://gatha.ereboslab.com/#5.60`. Previously, opening that link cold
+  // still forced the recipient through the onboarding screen and a manual
+  // "Start reading" tap before they ever saw the verse that was actually
+  // shared with them — the deep link only "worked" after an extra step,
+  // undermining sharing as a real growth lever (same bug found + fixed in
+  // sibling app Shloka, commit ca0e400). If the URL already carries a valid
+  // verse hash on first load, skip onboarding and jump straight into the
+  // feed at that verse.
+  const hasDeepLinkHash = /^#?\d+\.\d+$/.test(location.hash);
+
   startBtn.addEventListener("click", start);
   sheetClose.addEventListener("click", closeSheet);
   sheetBackdrop.addEventListener("click", closeSheet);
@@ -477,4 +488,6 @@
     if (e.key === "Escape" && !chaptersSheet.hidden) closeChaptersSheet();
     if (e.key === "Escape" && !keptSheet.hidden) closeKeptSheet();
   });
+
+  if (hasDeepLinkHash) start();
 })();
