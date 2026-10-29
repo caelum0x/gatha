@@ -30,6 +30,7 @@
   const keptBackdrop = document.getElementById("keptBackdrop");
   const keptClose = document.getElementById("keptClose");
   const keptListEl = document.getElementById("keptList");
+  const keptListStatusEl = document.getElementById("keptListStatus");
 
   let verses = [];
   let renderedCount = 0;
@@ -440,7 +441,15 @@
 
     if (kept.length === 0 && noted.length === 0) {
       keptListEl.innerHTML = `<p class="kept-empty">No kept verses or notes yet — tap the heart or note icon on any verse to save it here.</p>`;
+      if (keptListStatusEl) keptListStatusEl.textContent = "No kept verses or notes yet.";
       return;
+    }
+
+    if (keptListStatusEl) {
+      const parts = [];
+      if (kept.length) parts.push(`${kept.length} kept verse${kept.length === 1 ? "" : "s"}`);
+      if (noted.length) parts.push(`${noted.length} note${noted.length === 1 ? "" : "s"}`);
+      keptListStatusEl.textContent = parts.join(", ") + ".";
     }
 
     let html = "";
