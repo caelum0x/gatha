@@ -257,6 +257,20 @@
       </button>`;
   }
 
+  // Pali romanization uses diacritics (ā, ī, ū, ṅ, ñ, ṭ, ḍ, ṇ, ḷ, ṁ) on
+  // every single one of the 423 verses — but no standard keyboard lets a
+  // reader type those. Before this, searching the plain-ASCII spelling of a
+  // Pali word a reader actually remembers (e.g. "nibbana", "tanha",
+  // "brahmana") silently returned zero real matches against `v.pali`, even
+  // though the word is in the text — the search just required the exact
+  // diacritic marks it would never receive. Fold both the query and the
+  // comparison text to base Latin letters (NFD-decompose, strip combining
+  // marks) so plain-ASCII typing matches the real diacritic text. English
+  // translation search is unaffected (already plain ASCII).
+  function foldDiacritics(s) {
+    return s.normalize("NFD").replace(/[̀-ͯ]/g, "");
+  }
+
   function renderChapterSearch(query) {
     if (!query) {
       showChapterBrowseView();
@@ -268,16 +282,25 @@
     chapterSearchResultsEl.hidden = false;
 
     const q = query.toLowerCase();
+    const qFolded = foldDiacritics(q);
+    // Guard: a query made up of only combining marks folds to "" — never
+    // treat that as a wildcard match against every verse.
+    const useFold = qFolded.length > 0;
     const chapterMatches = chapters.filter(
       (c) =>
         c.title.toLowerCase().includes(q) ||
         c.paliName.toLowerCase().includes(q) ||
+        (useFold && foldDiacritics(c.paliName.toLowerCase()).includes(qFolded)) ||
         String(c.chapter) === query
     );
     const verseMatches = [];
     for (let i = 0; i < verses.length; i++) {
       const v = verses[i];
-      if (v.translation.toLowerCase().includes(q) || v.pali.toLowerCase().includes(q)) {
+      if (
+        v.translation.toLowerCase().includes(q) ||
+        v.pali.toLowerCase().includes(q) ||
+        (useFold && foldDiacritics(v.pali.toLowerCase()).includes(qFolded))
+      ) {
         verseMatches.push({ v, idx: i });
         if (verseMatches.length >= 40) break;
       }
