@@ -41,6 +41,58 @@
   let chapters = []; // [{ chapter, title, paliName, firstIdx, count }]
   let currentChapter = 1;
 
+  // ---------- Focus trap (keyboard/screen-reader users) ----------
+  // None of the three bottom sheets ever moved keyboard focus when they
+  // opened. Reproduced live: focusing a verse's Note button with the keyboard
+  // and pressing Enter opened the detail sheet, but `document.activeElement`
+  // stayed on that same (now visually covered) background button — pressing
+  // Tab from there walked through the *next* verse card's action buttons
+  // behind the sheet, never reaching the sheet's own close button or its note
+  // textarea. A keyboard-only or screen-reader user could open the sheet
+  // (Escape already closed it) but had no way to reach anything inside it —
+  // the Note feature, one of the app's three primary actions, was completely
+  // unusable without a mouse/touch. Fixed with a minimal reusable focus trap:
+  // move focus into the sheet on open, cycle Tab/Shift+Tab within it while
+  // open, and restore focus to whatever triggered it on close.
+  let lastFocusedEl = null;
+  let focusTrapHandler = null;
+
+  function focusableElements(container) {
+    return [...container.querySelectorAll(
+      'button, [href], input, textarea, select, [tabindex]:not([tabindex="-1"])'
+    )].filter((el) => !el.disabled && el.offsetParent !== null);
+  }
+
+  function trapFocusOpen(panelEl) {
+    lastFocusedEl = document.activeElement;
+    const focusables = focusableElements(panelEl);
+    (focusables[0] || panelEl).focus();
+    focusTrapHandler = (e) => {
+      if (e.key !== "Tab") return;
+      const f = focusableElements(panelEl);
+      if (!f.length) return;
+      const first = f[0];
+      const last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", focusTrapHandler);
+  }
+
+  function trapFocusClose() {
+    if (focusTrapHandler) {
+      document.removeEventListener("keydown", focusTrapHandler);
+      focusTrapHandler = null;
+    }
+    if (lastFocusedEl && document.body.contains(lastFocusedEl)) lastFocusedEl.focus();
+    lastFocusedEl = null;
+  }
+
   function loadSet(key) {
     try {
       return new Set(JSON.parse(localStorage.getItem(key) || "[]"));
@@ -232,11 +284,13 @@
     showChapterBrowseView();
     chaptersSheet.hidden = false;
     document.body.style.overflow = "hidden";
+    trapFocusOpen(chaptersSheet.querySelector(".sheet-panel"));
   }
 
   function closeChaptersSheet() {
     chaptersSheet.hidden = true;
     document.body.style.overflow = "";
+    trapFocusClose();
   }
 
   // ---------- Chapter + full-text verse search ----------
@@ -412,11 +466,13 @@
     renderKeptList();
     keptSheet.hidden = false;
     document.body.style.overflow = "hidden";
+    trapFocusOpen(keptSheet.querySelector(".sheet-panel"));
   }
 
   function closeKeptSheet() {
     keptSheet.hidden = true;
     document.body.style.overflow = "";
+    trapFocusClose();
   }
 
   function openSheet(id) {
@@ -453,11 +509,13 @@
 
     sheet.hidden = false;
     document.body.style.overflow = "hidden";
+    trapFocusOpen(sheet.querySelector(".sheet-panel"));
   }
 
   function closeSheet() {
     sheet.hidden = true;
     document.body.style.overflow = "";
+    trapFocusClose();
   }
 
   function toggleLike(id) {
