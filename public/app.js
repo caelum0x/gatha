@@ -9,6 +9,7 @@
 
   const LS_LIKES = "gatha:likes";
   const LS_NOTES = "gatha:notes";
+  const LS_LAST_READ = "gatha:lastRead";
 
   const onboarding = document.getElementById("onboarding");
   const startBtn = document.getElementById("startBtn");
@@ -141,13 +142,14 @@
         if (e.isIntersecting && e.intersectionRatio > 0.6) {
           const idx = parseInt(e.target.getAttribute("data-idx"), 10);
           const chapter = e.target.getAttribute("data-chapter");
-          updateProgress(idx, chapter);
+          const id = e.target.getAttribute("data-id");
+          updateProgress(idx, chapter, id);
         }
       });
     }, { root: feedEl, threshold: [0.6] });
   }
 
-  function updateProgress(idx, chapter) {
+  function updateProgress(idx, chapter, id) {
     currentChapter = parseInt(chapter, 10);
     if (progressBar) {
       const pct = ((idx + 1) / verses.length) * 100;
@@ -155,6 +157,9 @@
     }
     if (progressLabel) {
       progressLabel.textContent = `Ch. ${chapter} / ${chapters.length || 26}`;
+    }
+    if (id) {
+      try { localStorage.setItem(LS_LAST_READ, id); } catch (e) { /* storage unavailable */ }
     }
   }
 
@@ -355,15 +360,30 @@
 
     const hashId = location.hash.replace("#", "");
     if (hashId) {
-      const idx = verses.findIndex((v) => v.id === hashId);
-      if (idx >= 0) {
-        while (renderedCount <= idx) renderNextBatch();
-        requestAnimationFrame(() => {
-          const el = feedEl.querySelector(`.verse-card[data-id="${hashId}"]`);
-          if (el) el.scrollIntoView({ block: "start" });
-        });
+      jumpToVerse(hashId);
+    } else {
+      const lastReadId = safeGetLastRead();
+      if (lastReadId && lastReadId !== verses[0].id) {
+        jumpToVerse(lastReadId, () => toast("Continuing where you left off"));
       }
     }
+  }
+
+  function safeGetLastRead() {
+    try { return localStorage.getItem(LS_LAST_READ); } catch (e) { return null; }
+  }
+
+  function jumpToVerse(id, onJumped) {
+    const idx = verses.findIndex((v) => v.id === id);
+    if (idx < 0) return;
+    while (renderedCount <= idx) renderNextBatch();
+    requestAnimationFrame(() => {
+      const el = feedEl.querySelector(`.verse-card[data-id="${id}"]`);
+      if (el) {
+        el.scrollIntoView({ block: "start" });
+        if (onJumped) onJumped();
+      }
+    });
   }
 
   function wireChaptersSheet() {
