@@ -48,8 +48,19 @@
       return new Set();
     }
   }
+  // Writes must never throw: Safari private browsing (older WebKit) and any
+  // browser/profile with storage disabled or quota-exceeded throws a real
+  // DOMException from localStorage.setItem. Every caller of saveSet/saveNotes
+  // does its own DOM update (button state, kept count, sheet refresh) in the
+  // lines right after the write — an uncaught throw here aborted that whole
+  // function, so the heart/note icon never visually updated and stayed
+  // silently "stuck" on every future tap (confirmed live: tapping Keep with
+  // localStorage.setItem throwing left the button reading "Keep" forever).
+  // Swallow the error (same pattern loadSet/loadNotes already use for reads,
+  // and updateProgress already uses for its own write) so the in-memory state
+  // and its UI stay in sync even when nothing can actually persist.
   function saveSet(key, set) {
-    localStorage.setItem(key, JSON.stringify([...set]));
+    try { localStorage.setItem(key, JSON.stringify([...set])); } catch (e) { /* storage unavailable */ }
   }
   function loadNotes() {
     try {
@@ -59,7 +70,7 @@
     }
   }
   function saveNotes(notes) {
-    localStorage.setItem(LS_NOTES, JSON.stringify(notes));
+    try { localStorage.setItem(LS_NOTES, JSON.stringify(notes)); } catch (e) { /* storage unavailable */ }
   }
 
   const likes = loadSet(LS_LIKES);
