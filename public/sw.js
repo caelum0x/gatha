@@ -1,13 +1,14 @@
 // Gatha service worker — offline support for the app shell + verse data.
 // Bump CACHE_VERSION whenever a cached file's content changes so old
 // caches get cleaned up and clients pick up the new files.
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const CACHE_NAME = `gatha-${CACHE_VERSION}`;
 
 const SHELL_URLS = [
   "/",
   "/index.html",
   "/app.js",
+  "/cardshare.js",
   "/style.css",
   "/manifest.json",
   "/icon-192.png",
