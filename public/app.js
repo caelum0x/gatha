@@ -11,6 +11,35 @@
   const LS_LIKES = "gatha:likes";
   const LS_NOTES = "gatha:notes";
   const LS_LAST_READ = "gatha:lastRead";
+  const LS_TEXT_SCALE = "gatha:textScale";
+
+  // ---------- Adjustable reading text size ----------
+  // Sibling mobile apps in this portfolio (Ayah, Stichos, Shloka-mobile)
+  // already ship a discrete text-size control for their reading text, and
+  // none of Gatha's prior eighteen passes (functional, resilience,
+  // cross-engine, keyboard, screen-reader, security, offline, multi-tab,
+  // content-accuracy, performance, SEO) ever added one here — confirmed by
+  // grep before building this (no "textScale"/"font-size" override anywhere
+  // in app.js/style.css). Every reading-text font-size (feed card Pali
+  // preview + translation, detail-sheet Pali + translation) was hardcoded,
+  // with no way to make it bigger or smaller — real friction for an
+  // audience that includes older readers reading dense, diacritic-heavy
+  // Pali on a phone screen. Same 5-step scale Ayah ships, applied here via
+  // one CSS variable (--text-scale, see style.css) so every already-
+  // rendered card rescales instantly with no per-element DOM rewrite.
+  const TEXT_SCALE_STEPS = [0.85, 1, 1.15, 1.3, 1.45];
+
+  function loadTextScale() {
+    try {
+      const v = parseFloat(localStorage.getItem(LS_TEXT_SCALE));
+      return TEXT_SCALE_STEPS.includes(v) ? v : 1;
+    } catch (e) {
+      return 1;
+    }
+  }
+  function saveTextScale(v) {
+    try { localStorage.setItem(LS_TEXT_SCALE, String(v)); } catch (e) { /* storage unavailable */ }
+  }
 
   const onboarding = document.getElementById("onboarding");
   const startBtn = document.getElementById("startBtn");
@@ -138,6 +167,36 @@
   // milliseconds.
   let likes = loadSet(LS_LIKES);
   let notes = loadNotes();
+  let textScale = loadTextScale();
+
+  function textScaleLabel() {
+    return Math.round(textScale * 100) + "%";
+  }
+
+  function applyTextScale() {
+    document.documentElement.style.setProperty("--text-scale", String(textScale));
+  }
+
+  function updateTextSizeButtons() {
+    feedEl.querySelectorAll(".textsize-btn").forEach((btn) => {
+      const count = btn.querySelector(".action-count");
+      if (count) count.textContent = textScaleLabel();
+      btn.setAttribute("aria-label", `Text size, ${textScaleLabel()}, tap to change`);
+    });
+  }
+
+  function cycleTextScale() {
+    const i = TEXT_SCALE_STEPS.indexOf(textScale);
+    textScale = TEXT_SCALE_STEPS[(i + 1) % TEXT_SCALE_STEPS.length];
+    saveTextScale(textScale);
+    applyTextScale();
+    updateTextSizeButtons();
+  }
+
+  // Applied as early as possible (before the feed even renders) so the very
+  // first batch of cards is drawn at the reader's saved size, not at 100%
+  // and then rescaled a frame later.
+  applyTextScale();
 
   async function fetchData() {
     const res = await fetch("/data/dhammapada.json");
@@ -171,6 +230,10 @@
           <button class="action-btn card-btn" data-id="${v.id}" aria-label="Share as image">
             ${ICONS.card}
             <span class="action-count">Card</span>
+          </button>
+          <button class="action-btn textsize-btn" data-id="${v.id}" aria-label="Text size, ${textScaleLabel()}, tap to change">
+            <span class="textsize-glyph" aria-hidden="true">Aa</span>
+            <span class="action-count">${textScaleLabel()}</span>
           </button>
         </div>
       </section>
@@ -662,6 +725,8 @@
       if (shareBtn) { shareVerse(shareBtn.dataset.id); return; }
       const cardBtn = e.target.closest(".card-btn");
       if (cardBtn) { shareVerseCard(cardBtn.dataset.id); return; }
+      const textSizeBtn = e.target.closest(".textsize-btn");
+      if (textSizeBtn) { cycleTextScale(); return; }
       const openTarget = e.target.closest("[data-open]");
       if (openTarget) { openSheet(openTarget.getAttribute("data-open")); return; }
     });
@@ -823,6 +888,10 @@
         if (count) count.textContent = notes[btn.dataset.id] ? "Noted" : "Note";
       });
       if (!keptSheet.hidden) renderKeptList();
+    } else if (e.key === LS_TEXT_SCALE) {
+      textScale = loadTextScale();
+      applyTextScale();
+      updateTextSizeButtons();
     }
   });
 

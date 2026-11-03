@@ -7,6 +7,11 @@
   --line: rgba(238,241,238,0.14);
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Adjustable reading text size (see app.js's TEXT_SCALE_STEPS). A single
+     CSS variable scales every reading-text element (feed card + detail
+     sheet) at once, so a tap on any card's text-size button rescales
+     already-rendered cards with no per-element JS rewrite needed. */
+  --text-scale: 1;
 }
 
 * { box-sizing: border-box; }
@@ -163,7 +168,7 @@ html, body {
 }
 
 .verse-text {
-  font-size: 21px;
+  font-size: calc(21px * var(--text-scale, 1));
   line-height: 1.5;
   font-weight: 400;
   color: var(--fg);
@@ -171,7 +176,7 @@ html, body {
 }
 
 .verse-pali-preview {
-  font-size: 14px;
+  font-size: calc(14px * var(--text-scale, 1));
   color: var(--fg-faint);
   margin: 0;
   font-style: italic;
@@ -220,6 +225,18 @@ html, body {
 .action-btn.liked svg {
   fill: var(--accent);
   stroke: var(--accent);
+}
+
+.textsize-glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--fg);
 }
 
 .action-count {
@@ -592,7 +609,7 @@ html, body {
 }
 
 .sheet-pali {
-  font-size: 18px;
+  font-size: calc(18px * var(--text-scale, 1));
   line-height: 1.7;
   margin: 0 0 22px;
   color: var(--fg);
@@ -600,7 +617,7 @@ html, body {
 }
 
 .sheet-translation {
-  font-size: 15.5px;
+  font-size: calc(15.5px * var(--text-scale, 1));
   line-height: 1.6;
   margin: 0;
   color: var(--fg);
