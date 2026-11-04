@@ -635,11 +635,35 @@
     if (!keptSheet.hidden) renderKeptList();
   }
 
+  // A shareable deep link for a verse `id` (e.g. "5.60"). Uses a real
+  // query param (?v=5.60), not a #hash — hash fragments are never sent to
+  // the server, so a social-media/iMessage crawler fetching a hash link
+  // always sees the generic site-wide page. `src/worker.js` reads this
+  // exact ?v= param server-side to rewrite the page's og:/twitter: meta
+  // tags (and inject real verse text) before the response goes out, so
+  // the shared link actually shows a rich per-verse preview. Ported from
+  // the same ?v= pattern in sibling app Versling.
+  function verseUrl(id) {
+    return `${location.origin}/?v=${id}`;
+  }
+
+  // Resolves a deep-linked verse id from either the ?v= query param (the
+  // real, server-visible share link — see verseUrl() above) or a legacy
+  // #hash link (still honored for any older links already shared/bookmarked
+  // before this ?v= scheme existed), preferring the query param.
+  function getDeepLinkId() {
+    const qId = new URLSearchParams(location.search).get("v");
+    if (qId && /^\d+\.\d+$/.test(qId)) return qId;
+    const hashId = location.hash.replace("#", "");
+    if (/^\d+\.\d+$/.test(hashId)) return hashId;
+    return null;
+  }
+
   async function shareVerse(id) {
     const v = verses.find((x) => x.id === id);
     if (!v) return;
     const text = `"${v.translation}"\n— Dhammapada ${v.chapter}.${v.verse}, ${v.chapterTitle}`;
-    const url = `${location.origin}/#${id}`;
+    const url = verseUrl(id);
     if (navigator.share) {
       try {
         await navigator.share({ text, url, title: "Gatha" });
@@ -681,7 +705,7 @@
       });
       const result = await window.VerseCard.shareCardImage(canvas, {
         filename: `gatha-${id}.png`,
-        shareText: `"${v.translation}" — Dhammapada ${v.chapter}.${v.verse}\n${location.origin}/#${id}`,
+        shareText: `"${v.translation}" — Dhammapada ${v.chapter}.${v.verse}\n${verseUrl(id)}`,
         shareTitle: "Gatha",
       });
       if (result === "shared") toast("Shared");
@@ -776,9 +800,9 @@
     wireChaptersSheet();
     renderNextBatch();
 
-    const hashId = location.hash.replace("#", "");
-    if (hashId) {
-      jumpToVerse(hashId);
+    const deepLinkId = getDeepLinkId();
+    if (deepLinkId) {
+      jumpToVerse(deepLinkId);
     } else {
       const lastReadId = safeGetLastRead();
       if (lastReadId && lastReadId !== verses[0].id) {
@@ -814,15 +838,15 @@
   }
 
   // A shared verse (`shareVerse()` above) produces a link like
-  // `https://gatha.ereboslab.com/#5.60`. Previously, opening that link cold
-  // still forced the recipient through the onboarding screen and a manual
-  // "Start reading" tap before they ever saw the verse that was actually
-  // shared with them — the deep link only "worked" after an extra step,
-  // undermining sharing as a real growth lever (same bug found + fixed in
-  // sibling app Shloka, commit ca0e400). If the URL already carries a valid
-  // verse hash on first load, skip onboarding and jump straight into the
-  // feed at that verse.
-  const hasDeepLinkHash = /^#?\d+\.\d+$/.test(location.hash);
+  // `https://gatha.ereboslab.com/?v=5.60`. Previously, opening that link
+  // cold still forced the recipient through the onboarding screen and a
+  // manual "Start reading" tap before they ever saw the verse that was
+  // actually shared with them — the deep link only "worked" after an extra
+  // step, undermining sharing as a real growth lever (same bug found +
+  // fixed in sibling app Shloka, commit ca0e400). If the URL already
+  // carries a valid verse id (query param or legacy hash) on first load,
+  // skip onboarding and jump straight into the feed at that verse.
+  const hasDeepLinkHash = !!getDeepLinkId();
 
   startBtn.addEventListener("click", start);
   sheetClose.addEventListener("click", closeSheet);
